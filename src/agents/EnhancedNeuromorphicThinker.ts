@@ -497,6 +497,23 @@ export class EnhancedNeuromorphicThinker {
     return this.dreamState;
   }
   
+  // Apply external reward signal to influence neuromodulation and learning
+  applyReward(reward: number) {
+    this.neuronProcessor.applyReward(reward);
+    // Optionally, reinforce recent successful thought
+    const last = this.state.currentThought;
+    if (last && reward > 0) {
+      this.memorySystem.addSemanticKnowledge(`reinforced_${last.id}`,
+        {
+          definition: last.output,
+          category: ['reinforcement'],
+          confidence: Math.min(1, last.confidence + reward)
+        }
+      );
+    }
+    return this.neuronProcessor.getNetworkState().neuromodulators;
+  }
+  
   // Multi-agent communication
   connectToAgent(agentId: string, agent: EnhancedNeuromorphicThinker) {
     this.connectedAgents.set(agentId, agent);
