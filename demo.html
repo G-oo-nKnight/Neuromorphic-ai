@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neuromorphic Brain Demo - Watch AI Learn and Think</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <style>
+        .gradient-brain {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #fbbf24 75%, #22c55e 100%);
+            background-size: 200% 200%;
+            animation: gradient 15s ease infinite;
+        }
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <div class="container mx-auto p-4">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-5xl font-bold mb-2 gradient-brain bg-clip-text text-transparent">
+                <i class="fas fa-brain mr-3"></i>Neuromorphic Brain Demo
+            </h1>
+            <p class="text-xl text-gray-400">Watch an AI Brain Learn, Think, and Evolve in Real-Time</p>
+        </div>
+
+        <!-- Demo Controls -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-6">
+            <h2 class="text-2xl font-bold mb-4">
+                <i class="fas fa-gamepad mr-2"></i>Interactive Demo
+            </h2>
+            
+            <!-- Task Selection -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-2">Select Learning Task:</label>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button onclick="startEmotionTask()" 
+                            class="p-4 bg-purple-600 hover:bg-purple-700 rounded-lg transition">
+                        <i class="fas fa-heart mb-2 text-2xl"></i>
+                        <div class="font-bold">Emotion Recognition</div>
+                        <div class="text-xs">Teach the brain to recognize emotions</div>
+                    </button>
+                    <button onclick="startPatternTask()" 
+                            class="p-4 bg-blue-600 hover:bg-blue-700 rounded-lg transition">
+                        <i class="fas fa-shapes mb-2 text-2xl"></i>
+                        <div class="font-bold">Pattern Learning</div>
+                        <div class="text-xs">Watch it learn sequences and patterns</div>
+                    </button>
+                    <button onclick="startDecisionTask()" 
+                            class="p-4 bg-green-600 hover:bg-green-700 rounded-lg transition">
+                        <i class="fas fa-route mb-2 text-2xl"></i>
+                        <div class="font-bold">Decision Making</div>
+                        <div class="text-xs">Observe complex reasoning pathways</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Custom Input -->
+            <div class="mt-6">
+                <label class="block text-sm font-medium mb-2">Or Enter Custom Input:</label>
+                <div class="flex gap-2">
+                    <input type="text" id="custom-input" 
+                           class="flex-1 px-4 py-2 bg-gray-700 rounded-lg"
+                           placeholder="Type anything for the brain to process...">
+                    <button onclick="processCustomInput()" 
+                            class="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg">
+                        <i class="fas fa-brain mr-2"></i>Process
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Brain Visualization -->
+        <div class="bg-gray-800 rounded-lg p-4 mb-6">
+            <h3 class="text-xl font-bold mb-2">
+                <i class="fas fa-project-diagram mr-2"></i>Neural Processing Pathway
+            </h3>
+            <div id="brain-viz" class="w-full h-[600px] rounded-lg bg-gray-900"></div>
+        </div>
+
+        <!-- Live Metrics -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-gray-800 rounded-lg p-4">
+                <div class="text-sm text-gray-400">Total Neurons Fired</div>
+                <div class="text-3xl font-bold text-blue-400" id="neurons-fired">0</div>
+                <div class="text-xs text-gray-500">Across all regions</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4">
+                <div class="text-sm text-gray-400">Memories Formed</div>
+                <div class="text-3xl font-bold text-purple-400" id="memories-formed">0</div>
+                <div class="text-xs text-gray-500">Episodic + Semantic</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4">
+                <div class="text-sm text-gray-400">Learning Progress</div>
+                <div class="text-3xl font-bold text-green-400" id="learning-progress">0%</div>
+                <div class="text-xs text-gray-500">Pattern recognition</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4">
+                <div class="text-sm text-gray-400">Confidence Level</div>
+                <div class="text-3xl font-bold text-orange-400" id="confidence-level">0%</div>
+                <div class="text-xs text-gray-500">Decision certainty</div>
+            </div>
+        </div>
+
+        <!-- Learning History -->
+        <div class="bg-gray-800 rounded-lg p-4 mb-6">
+            <h3 class="text-xl font-bold mb-4">
+                <i class="fas fa-history mr-2"></i>Learning History
+            </h3>
+            <div id="learning-history" class="space-y-2 max-h-64 overflow-y-auto">
+                <!-- History items will be added here -->
+            </div>
+        </div>
+
+        <!-- What's Happening Section -->
+        <div class="bg-gradient-to-r from-purple-900 to-blue-900 rounded-lg p-6">
+            <h3 class="text-2xl font-bold mb-4">
+                <i class="fas fa-info-circle mr-2"></i>What You're Seeing
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="font-bold text-yellow-400 mb-2">🧠 Biological Neurons</h4>
+                    <p class="text-sm text-gray-300">
+                        Each circle represents a neuron with realistic membrane dynamics, 
+                        firing thresholds, and refractory periods - just like in your brain.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-green-400 mb-2">⚡ Spike Propagation</h4>
+                    <p class="text-sm text-gray-300">
+                        Watch electrical signals travel through synapses with biological delays,
+                        triggering cascades of neural activity.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-blue-400 mb-2">💾 Memory Formation</h4>
+                    <p class="text-sm text-gray-300">
+                        The brain stores experiences in episodic memory and extracts knowledge
+                        into semantic memory, just like human memory systems.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-purple-400 mb-2">📈 STDP Learning</h4>
+                    <p class="text-sm text-gray-300">
+                        Spike-Timing-Dependent Plasticity strengthens connections between
+                        neurons that fire together, enabling real learning.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="/static/brain-visualizer.js"></script>
+    <script>
+        // Initialize visualizer
+        const brainViz = new BrainVisualizer('brain-viz');
+        let sessionId = 'demo-' + Math.random().toString(36).substr(2, 9);
+        let totalNeuronsFired = 0;
+        let totalMemories = 0;
+        let learningHistory = [];
+
+        // Emotion recognition task
+        async function startEmotionTask() {
+            const emotions = [
+                { text: "I'm so happy today!", emotion: "joy" },
+                { text: "This makes me really angry", emotion: "anger" },
+                { text: "I feel so sad and lonely", emotion: "sadness" },
+                { text: "I'm excited about the future!", emotion: "joy" },
+                { text: "This is terrifying", emotion: "fear" }
+            ];
+
+            addToHistory("Starting Emotion Recognition Task", "info");
+            
+            for (const sample of emotions) {
+                await processInput(sample.text);
+                await sleep(3000);
+                
+                // Provide feedback (reinforcement)
+                await provideReward(sample.emotion === "joy" ? 0.8 : 0.3);
+                addToHistory(`Learned: "${sample.text}" → ${sample.emotion}`, "success");
+            }
+
+            // Test learning
+            const testInput = "I'm feeling great!";
+            addToHistory(`Testing with: "${testInput}"`, "test");
+            await processInput(testInput);
+        }
+
+        // Pattern learning task
+        async function startPatternTask() {
+            const patterns = [
+                [1, 2, 3, 4, 5],
+                [2, 4, 6, 8, 10],
+                [1, 1, 2, 3, 5],
+                [5, 10, 15, 20, 25]
+            ];
+
+            addToHistory("Starting Pattern Learning Task", "info");
+            
+            for (const pattern of patterns) {
+                await processInput(pattern);
+                await sleep(3000);
+                addToHistory(`Learned pattern: [${pattern.join(', ')}]`, "success");
+            }
+
+            // Test with new pattern
+            const testPattern = [3, 6, 9, 12, 15];
+            addToHistory(`Testing with: [${testPattern.join(', ')}]`, "test");
+            await processInput(testPattern);
+        }
+
+        // Decision making task
+        async function startDecisionTask() {
+            const scenarios = [
+                { 
+                    situation: "Low battery, charging station nearby",
+                    decision: "charge"
+                },
+                {
+                    situation: "Obstacle detected, path blocked",
+                    decision: "find_alternative"
+                },
+                {
+                    situation: "Goal reached, task complete",
+                    decision: "celebrate"
+                }
+            ];
+
+            addToHistory("Starting Decision Making Task", "info");
+            
+            for (const scenario of scenarios) {
+                await processInput(scenario.situation);
+                await sleep(3000);
+                addToHistory(`Scenario: ${scenario.situation} → Decision: ${scenario.decision}`, "success");
+            }
+        }
+
+        // Process custom input
+        async function processCustomInput() {
+            const input = document.getElementById('custom-input').value;
+            if (!input) return;
+            
+            addToHistory(`Processing: "${input}"`, "info");
+            await processInput(input);
+            document.getElementById('custom-input').value = '';
+        }
+
+        // Process input through the brain
+        async function processInput(input) {
+            try {
+                const response = await axios.post('/api/think', {
+                    sessionId: sessionId,
+                    input: input
+                });
+
+                const data = response.data;
+                
+                // Visualize the pathway
+                if (data.thought) {
+                    const pathway = {
+                        input: input,
+                        sensoryCoding: new Array(20).fill(0).map(() => Math.random()),
+                        neuralPathway: data.thought.neuronActivity
+                            .filter(a => a.fired)
+                            .map(a => a.neuronId)
+                            .slice(0, 50),
+                        memoryActivations: data.thought.memoriesAccessed || [],
+                        decision: data.thought.output,
+                        confidence: data.thought.confidence
+                    };
+                    
+                    brainViz.visualizePathway(pathway);
+                    
+                    // Update metrics
+                    updateMetrics(data);
+                }
+            } catch (error) {
+                console.error('Error processing input:', error);
+                addToHistory('Error processing input', 'error');
+            }
+        }
+
+        // Provide reward signal
+        async function provideReward(reward) {
+            try {
+                await axios.post(`/api/reward/${sessionId}`, {
+                    reward: reward
+                });
+            } catch (error) {
+                console.error('Error applying reward:', error);
+            }
+        }
+
+        // Update display metrics
+        function updateMetrics(data) {
+            if (data.thought) {
+                // Count fired neurons
+                const firedCount = data.thought.neuronActivity.filter(a => a.fired).length;
+                totalNeuronsFired += firedCount;
+                document.getElementById('neurons-fired').textContent = totalNeuronsFired;
+                
+                // Update confidence
+                const confidence = (data.thought.confidence * 100).toFixed(0);
+                document.getElementById('confidence-level').textContent = confidence + '%';
+            }
+            
+            if (data.memoryStats) {
+                // Update memory count
+                totalMemories = data.memoryStats.totalMemories || 0;
+                document.getElementById('memories-formed').textContent = totalMemories;
+            }
+            
+            if (data.state && data.state.performance) {
+                // Update learning progress
+                const progress = (data.state.performance.learningProgress * 100).toFixed(0);
+                document.getElementById('learning-progress').textContent = progress + '%';
+                
+                // Show learning metrics
+                brainViz.showLearningProgress(data.state.performance);
+            }
+            
+            if (data.networkState) {
+                // Show spike histogram
+                const spikeHistory = data.thought.spikes || [];
+                if (spikeHistory.length > 0) {
+                    brainViz.showSpikeHistory(spikeHistory);
+                }
+            }
+        }
+
+        // Add entry to learning history
+        function addToHistory(message, type = 'info') {
+            const history = document.getElementById('learning-history');
+            const entry = document.createElement('div');
+            
+            const icons = {
+                info: 'fa-info-circle text-blue-400',
+                success: 'fa-check-circle text-green-400',
+                test: 'fa-flask text-purple-400',
+                error: 'fa-exclamation-circle text-red-400'
+            };
+            
+            entry.className = 'flex items-start gap-2 p-2 bg-gray-700 rounded';
+            entry.innerHTML = `
+                <i class="fas ${icons[type]} mt-1"></i>
+                <div class="flex-1">
+                    <div class="text-sm">${message}</div>
+                    <div class="text-xs text-gray-500">${new Date().toLocaleTimeString()}</div>
+                </div>
+            `;
+            
+            history.insertBefore(entry, history.firstChild);
+            
+            // Limit history size
+            while (history.children.length > 20) {
+                history.removeChild(history.lastChild);
+            }
+        }
+
+        // Utility sleep function
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Auto-start with a welcome message
+        window.onload = () => {
+            addToHistory("Neuromorphic Brain initialized - Ready to learn!", "success");
+            addToHistory("Select a task above or enter custom input to begin", "info");
+        };
+    </script>
+</body>
+</html>
