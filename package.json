@@ -3,17 +3,32 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:sandbox": "wrangler pages dev dist --ip 0.0.0.0 --port 3000",
+    "dev:d1": "wrangler pages dev dist --d1=neuromorphic-db --local --ip 0.0.0.0 --port 3000",
     "build": "vite build",
-    "preview": "wrangler pages dev",
-    "deploy": "npm run build && wrangler pages deploy",
-    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+    "preview": "wrangler pages dev dist",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name neuromorphic-ai",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "clean-port": "fuser -k 3000/tcp 2>/dev/null || true",
+    "db:create": "wrangler d1 create neuromorphic-db",
+    "db:migrate:local": "wrangler d1 migrations apply neuromorphic-db --local",
+    "db:migrate:prod": "wrangler d1 migrations apply neuromorphic-db",
+    "db:seed": "wrangler d1 execute neuromorphic-db --local --file=./seed.sql",
+    "db:reset": "rm -rf .wrangler/state/v3/d1 && npm run db:migrate:local && npm run db:seed",
+    "db:console:local": "wrangler d1 execute neuromorphic-db --local",
+    "db:console:prod": "wrangler d1 execute neuromorphic-db"
   },
   "dependencies": {
-    "hono": "^4.9.2"
+    "hono": "^4.9.2",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250705.0",
     "@hono/vite-build": "^1.2.0",
+    "@hono/vite-cloudflare-pages": "^0.4.2",
     "@hono/vite-dev-server": "^0.18.2",
+    "@types/uuid": "^9.0.7",
+    "typescript": "^5.3.3",
     "vite": "^6.3.5",
     "wrangler": "^4.4.0"
   }
