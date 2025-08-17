@@ -167,15 +167,21 @@ function updateConsciousness(consciousness) {
   
   consciousnessData = consciousness;
   
-  // Update bars
-  document.getElementById('consciousness-bar').style.width = `${consciousness.level * 100}%`;
-  document.getElementById('consciousness-value').textContent = `${(consciousness.level * 100).toFixed(1)}%`;
+  // Update bars with null checks
+  const consciousnessBar = document.getElementById('consciousness-bar');
+  const consciousnessValue = document.getElementById('consciousness-value');
+  if (consciousnessBar) consciousnessBar.style.width = `${consciousness.level * 100}%`;
+  if (consciousnessValue) consciousnessValue.textContent = `${(consciousness.level * 100).toFixed(1)}%`;
   
-  document.getElementById('awareness-bar').style.width = `${consciousness.selfAwareness * 100}%`;
-  document.getElementById('awareness-value').textContent = `${(consciousness.selfAwareness * 100).toFixed(1)}%`;
+  const awarenessBar = document.getElementById('awareness-bar');
+  const awarenessValue = document.getElementById('awareness-value');
+  if (awarenessBar) awarenessBar.style.width = `${consciousness.selfAwareness * 100}%`;
+  if (awarenessValue) awarenessValue.textContent = `${(consciousness.selfAwareness * 100).toFixed(1)}%`;
   
-  document.getElementById('attention-bar').style.width = `${consciousness.attention * 100}%`;
-  document.getElementById('attention-value').textContent = `${(consciousness.attention * 100).toFixed(1)}%`;
+  const attentionBar = document.getElementById('attention-bar');
+  const attentionValue = document.getElementById('attention-value');
+  if (attentionBar) attentionBar.style.width = `${consciousness.attention * 100}%`;
+  if (attentionValue) attentionValue.textContent = `${(consciousness.attention * 100).toFixed(1)}%`;
 }
 
 // Update neuromodulator display
@@ -188,28 +194,36 @@ function updateNeuromodulators(modulators) {
   const dopamineBar = document.querySelector('#dopamine-bar .bg-green-500');
   if (dopamineBar) {
     dopamineBar.style.width = `${modulators.dopamine * 100}%`;
-    dopamineBar.nextElementSibling.textContent = `${(modulators.dopamine * 100).toFixed(0)}%`;
+    if (dopamineBar.nextElementSibling) {
+      dopamineBar.nextElementSibling.textContent = `${(modulators.dopamine * 100).toFixed(0)}%`;
+    }
   }
   
   // Update serotonin
   const serotoninBar = document.querySelector('#serotonin-bar .bg-yellow-500');
   if (serotoninBar) {
     serotoninBar.style.width = `${modulators.serotonin * 100}%`;
-    serotoninBar.nextElementSibling.textContent = `${(modulators.serotonin * 100).toFixed(0)}%`;
+    if (serotoninBar.nextElementSibling) {
+      serotoninBar.nextElementSibling.textContent = `${(modulators.serotonin * 100).toFixed(0)}%`;
+    }
   }
   
   // Update acetylcholine
   const acetylcholineBar = document.querySelector('#acetylcholine-bar .bg-blue-500');
   if (acetylcholineBar) {
     acetylcholineBar.style.width = `${modulators.acetylcholine * 100}%`;
-    acetylcholineBar.nextElementSibling.textContent = `${(modulators.acetylcholine * 100).toFixed(0)}%`;
+    if (acetylcholineBar.nextElementSibling) {
+      acetylcholineBar.nextElementSibling.textContent = `${(modulators.acetylcholine * 100).toFixed(0)}%`;
+    }
   }
   
   // Update norepinephrine
   const norepinephrineBar = document.querySelector('#norepinephrine-bar .bg-red-500');
   if (norepinephrineBar) {
     norepinephrineBar.style.width = `${modulators.norepinephrine * 100}%`;
-    norepinephrineBar.nextElementSibling.textContent = `${(modulators.norepinephrine * 100).toFixed(0)}%`;
+    if (norepinephrineBar.nextElementSibling) {
+      norepinephrineBar.nextElementSibling.textContent = `${(modulators.norepinephrine * 100).toFixed(0)}%`;
+    }
   }
 }
 
@@ -250,10 +264,17 @@ function updateBrainRegions(networkState) {
 function updateMemoryCounts(memoryStats) {
   if (!memoryStats) return;
   
-  document.getElementById('episodic-count').textContent = memoryStats.episodic || 0;
-  document.getElementById('semantic-count').textContent = memoryStats.semantic || 0;
-  document.getElementById('procedural-count').textContent = memoryStats.procedural || 0;
-  document.getElementById('working-count').textContent = memoryStats.working || 0;
+  const episodicEl = document.getElementById('episodic-count');
+  if (episodicEl) episodicEl.textContent = memoryStats.episodic || 0;
+  
+  const semanticEl = document.getElementById('semantic-count');
+  if (semanticEl) semanticEl.textContent = memoryStats.semantic || 0;
+  
+  const proceduralEl = document.getElementById('procedural-count');
+  if (proceduralEl) proceduralEl.textContent = memoryStats.procedural || 0;
+  
+  const workingEl = document.getElementById('working-count');
+  if (workingEl) workingEl.textContent = memoryStats.working || 0;
 }
 
 // Display thought output

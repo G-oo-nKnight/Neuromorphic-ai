@@ -191,7 +191,10 @@ export class EnhancedNeuromorphicThinker {
     const encoding = new Array(20).fill(0); // 20 sensory neurons
     
     // Text-based encoding
-    const text = JSON.stringify(input).toLowerCase();
+    const text = (input !== undefined && input !== null) 
+      ? (typeof input === 'string' ? input.toLowerCase() : JSON.stringify(input).toLowerCase())
+      : '';
+    
     for (let i = 0; i < Math.min(text.length, encoding.length); i++) {
       encoding[i] = text.charCodeAt(i) / 255;
     }
@@ -210,7 +213,9 @@ export class EnhancedNeuromorphicThinker {
   }
   
   private evaluateEmotionalContent(input: any): number {
-    const text = JSON.stringify(input).toLowerCase();
+    const text = (input !== undefined && input !== null)
+      ? (typeof input === 'string' ? input.toLowerCase() : JSON.stringify(input).toLowerCase())
+      : '';
     
     // Simple sentiment analysis
     const positiveWords = ['good', 'happy', 'love', 'excellent', 'joy'];
@@ -288,13 +293,20 @@ export class EnhancedNeuromorphicThinker {
       reasoning.push(`Integrated ${memories.length} relevant memories:`);
       memories.slice(0, 3).forEach(m => {
         const memType = m.memory.type;
-        reasoning.push(`- ${memType} memory: ${JSON.stringify(m.memory.content || m.memory.concept).substring(0, 50)}...`);
+        const memContent = m.memory.content || m.memory.concept || 'unknown';
+        const memStr = typeof memContent === 'string' ? memContent : JSON.stringify(memContent) || 'undefined';
+        const truncated = memStr.length > 50 ? memStr.substring(0, 50) + '...' : memStr;
+        reasoning.push(`- ${memType} memory: ${truncated}`);
       });
     }
     
     // Self-awareness component
     if (this.selfAwareness > 0.5) {
-      reasoning.push(`Self-reflection: I am aware that I am processing "${JSON.stringify(input).substring(0, 30)}..."`);
+      const inputStr = input !== undefined && input !== null 
+        ? (typeof input === 'string' ? input : JSON.stringify(input) || 'undefined')
+        : 'undefined input';
+      const truncatedInput = inputStr.length > 30 ? inputStr.substring(0, 30) + '...' : inputStr;
+      reasoning.push(`Self-reflection: I am aware that I am processing "${truncatedInput}"`);
     }
     
     return reasoning;
