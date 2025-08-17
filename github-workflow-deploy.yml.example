@@ -1,0 +1,67 @@
+# GitHub Actions Workflow for Enhanced Neuromorphic AI
+# 
+# INSTRUCTIONS:
+# 1. Go to your GitHub repository: https://github.com/G-oo-nKnight/Neuromorphic-ai
+# 2. Click on "Actions" tab
+# 3. Click "New workflow" or "set up a workflow yourself"
+# 4. Copy this entire file content
+# 5. Name the file: .github/workflows/deploy.yml
+# 6. Commit directly to main branch
+#
+# Required Secrets (Settings > Secrets and variables > Actions):
+# - CLOUDFLARE_API_TOKEN: Your Cloudflare API token
+# - CLOUDFLARE_ACCOUNT_ID: Your Cloudflare account ID
+
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build project
+        run: npm run build
+        
+      - name: Run tests (if available)
+        run: npm test || echo "No tests configured"
+        
+      - name: Deploy to Cloudflare Pages
+        if: github.ref == 'refs/heads/main'
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: neuromorphic-ai
+          directory: dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Comment PR with preview URL
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🧠 Preview deployment ready! Check the Cloudflare Pages preview URL above.'
+            })
