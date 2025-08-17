@@ -10,6 +10,9 @@ class NeuralVisualizer {
     this.mode = options.mode || 'network'; // network, heatmap, energy, pathway
     
     // Color schemes
+    // Cluster color palette (InfraNodus-like)
+    this.clusterColor = d3.scaleOrdinal(d3.schemeTableau10);
+
     this.colors = {
       neuron: {
         pyramidal: '#3b82f6',
@@ -47,12 +50,12 @@ class NeuralVisualizer {
     // Clear container
     this.container.innerHTML = '';
     
-    // Create SVG canvas
+    // Create SVG canvas (InfraNodus dark background)
     this.svg = d3.select(this.container)
       .append('svg')
       .attr('width', this.width)
       .attr('height', this.height)
-      .style('background', 'linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%)');
+      .style('background', '#111');
     
     // Add filters for glow effects
     this.createFilters();
@@ -66,6 +69,9 @@ class NeuralVisualizer {
       overlay: this.svg.append('g').attr('class', 'overlay-layer')
     };
     
+    // Create analytics panel overlay (right side)
+    this.createAnalyticsPanel();
+
     // Initialize zoom behavior
     this.zoom = d3.zoom()
       .scaleExtent([0.1, 10])
@@ -79,10 +85,10 @@ class NeuralVisualizer {
     
     // Initialize force simulation
     this.simulation = d3.forceSimulation()
-      .force('link', d3.forceLink().id(d => d.id).distance(60))
-      .force('charge', d3.forceManyBody().strength(-200))
+      .force('link', d3.forceLink().id(d => d.id).distance(45).strength(0.3))
+      .force('charge', d3.forceManyBody().strength(-180))
       .force('center', d3.forceCenter(this.width / 2, this.height / 2))
-      .force('collision', d3.forceCollide().radius(20));
+      .force('collision', d3.forceCollide().radius(d => (d._size || 8) + 4));
     
     // Start animation loop
     this.startAnimation();
@@ -146,6 +152,20 @@ class NeuralVisualizer {
   
   renderForceNetwork(data) {
     const { neurons, connections, spikes } = data;
+
+    // Compute metrics & clusters (InfraNodus-style)
+    const metrics = this.computeMetrics(neurons, connections);
+    this.renderAnalytics(metrics);
+
+    // Decorate nodes with computed size/group
+    neurons.forEach(n => {
+      n._degree = metrics.degrees[n.id] || 0;
+      n._group = (n.group != null) ? n.group : (metrics.labels[n.id] || 0);
+      // Size: combine degree centrality and recent firing
+      const base = 6 + 10 * (n._degree / (metrics.maxDegree || 1));
+      const spikeBoost = n.fired ? 4 : 0;
+      n._size = n.size || base + spikeBoost;
+    });
     
     // Update connections
     const links = this.layers.connections
@@ -157,15 +177,11 @@ class NeuralVisualizer {
     const linksEnter = links.enter()
       .append('line')
       .attr('class', 'synapse')
-      .attr('stroke-width', d => Math.abs(d.weight) * 2);
+      .attr('stroke-width', 0.6);
     
     links.merge(linksEnter)
-      .attr('stroke', d => {
-        if (d.active) return this.colors.synapse.active;
-        return d.weight > 0 ? this.colors.synapse.excitatory : this.colors.synapse.inhibitory;
-      })
-      .attr('stroke-opacity', d => d.active ? 1 : 0.3)
-      .attr('stroke-dasharray', d => d.active ? 'none' : '5,5');
+      .attr('stroke', '#888')
+      .attr('stroke-opacity', d => d.active ? 0.8 : 0.15);
     
     // Update neurons
     const nodes = this.layers.neurons
@@ -177,14 +193,18 @@ class NeuralVisualizer {
     const nodesEnter = nodes.enter()
       .append('g')
       .attr('class', 'neuron')
+      .on('mouseover', (event, d) => this.highlightNeighbors(d, true))
+      .on('mouseout', (event, d) => this.highlightNeighbors(d, false))
+      .on('click', (event, d) => this.renderNodeDetails(d))
       .call(this.drag());
     
     // Add neuron circles
     nodesEnter.append('circle')
       .attr('r', d => this.getNeuronRadius(d))
-      .attr('fill', d => this.getNeuronColor(d))
-      .attr('stroke', '#fff')
-      .attr('stroke-width', 2);
+      .attr('fill', d => this.getClusterColor(d))
+      .attr('stroke', '#222')
+      .attr('stroke-width', 1.2)
+      .attr('opacity', 0.95);
     
     // Add voltage indicator
     nodesEnter.append('circle')
@@ -204,11 +224,11 @@ class NeuralVisualizer {
     // Update neuron states
     nodes.merge(nodesEnter)
       .select('circle:first-child')
-      .attr('fill', d => this.getNeuronColor(d))
+      .attr('fill', d => this.getClusterColor(d))
       .attr('filter', d => d.fired ? 'url(#glow)' : 'none')
       .transition()
-      .duration(100)
-      .attr('r', d => d.fired ? this.getNeuronRadius(d) * 1.5 : this.getNeuronRadius(d));
+      .duration(120)
+      .attr('r', d => d.fired ? this.getNeuronRadius(d) * 1.25 : this.getNeuronRadius(d));
     
     // Update voltage indicators
     nodes.merge(nodesEnter)
@@ -242,7 +262,7 @@ class NeuralVisualizer {
     // Add new spikes to trails
     spikes.forEach(spike => {
       this.spikeTrails.push({
-        path: spike.path,
+        path: spike.propagationPath || spike.path || [],
         strength: spike.strength,
         timestamp: spike.timestamp,
         progress: 0
@@ -257,7 +277,7 @@ class NeuralVisualizer {
     // Render spike animations
     const spikeElements = this.layers.spikes
       .selectAll('.spike')
-      .data(this.spikeTrails);
+      .data(this.spikeTrails, d => d.timestamp + ':' + (d.path && d.path.join('>')));
     
     spikeElements.exit().remove();
     
@@ -439,21 +459,144 @@ class NeuralVisualizer {
       .text(d => d.data.name ? d.data.name.substring(0, 3) : '');
   }
   
-  // Helper methods
+  // InfraNodus-style metrics
+  computeMetrics(neurons, connections) {
+    const degrees = {};
+    const neighbors = {};
+    neurons.forEach(n => { degrees[n.id] = 0; neighbors[n.id] = new Set(); });
+    connections.forEach(e => {
+      const s = typeof e.source === 'object' ? e.source.id : e.source;
+      const t = typeof e.target === 'object' ? e.target.id : e.target;
+      degrees[s] = (degrees[s] || 0) + 1;
+      degrees[t] = (degrees[t] || 0) + 1;
+      neighbors[s].add(t);
+      neighbors[t].add(s);
+    });
+    const maxDegree = Math.max(1, ...Object.values(degrees));
+    // Label Propagation for community detection
+    const labels = {};
+    neurons.forEach((n, i) => labels[n.id] = i);
+    for (let iter = 0; iter < 10; iter++) {
+      let changes = 0;
+      neurons.forEach(n => {
+        const counts = {};
+        neighbors[n.id].forEach(nb => {
+          const lab = labels[nb];
+          counts[lab] = (counts[lab] || 0) + 1;
+        });
+        let best = labels[n.id];
+        let bestCount = -1;
+        Object.entries(counts).forEach(([lab, cnt]) => {
+          if (cnt > bestCount) { bestCount = cnt; best = Number(lab); }
+        });
+        if (bestCount >= 0 && best !== labels[n.id]) { labels[n.id] = best; changes++; }
+      });
+      if (changes === 0) break;
+    }
+    // Cluster sizes
+    const clusterSizes = {};
+    Object.values(labels).forEach(l => { clusterSizes[l] = (clusterSizes[l] || 0) + 1; });
+    return { degrees, labels, maxDegree, clusterSizes };
+  }
+  
+  createAnalyticsPanel() {
+    // Sidebar overlay for metrics
+    if (this.analyticsDiv) this.analyticsDiv.remove();
+    this.analyticsDiv = document.createElement('div');
+    this.analyticsDiv.className = 'infra-analytics-panel';
+    Object.assign(this.analyticsDiv.style, {
+      position: 'absolute',
+      right: '10px',
+      top: '10px',
+      width: '260px',
+      maxHeight: '85%',
+      overflowY: 'auto',
+      background: 'rgba(0,0,0,0.6)',
+      color: '#eee',
+      padding: '10px',
+      borderRadius: '8px',
+      border: '1px solid #333',
+      fontSize: '12px'
+    });
+    this.container.appendChild(this.analyticsDiv);
+  }
+  
+  renderAnalytics(metrics) {
+    if (!this.analyticsDiv) return;
+    // Top nodes by degree
+    const entries = Object.entries(metrics.degrees).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const clusters = Object.entries(metrics.clusterSizes).sort((a,b)=>b[1]-a[1]);
+    this.analyticsDiv.innerHTML = `
+      <div style="font-weight:bold; margin-bottom:6px;">Graph Insights</div>
+      <div><strong>Top Nodes (degree):</strong></div>
+      <ul style="margin:4px 0 8px 14px;">
+        ${entries.map(([id,deg])=>`<li>${id.substring(0,10)}… — ${deg}</li>`).join('')}
+      </ul>
+      <div><strong>Clusters:</strong></div>
+      <ul style="margin:4px 0 0 14px;">
+        ${clusters.map(([lab,size])=>`<li><span style="display:inline-block;width:10px;height:10px;background:${this.clusterColor(lab)};margin-right:6px;border-radius:2px;"></span>Group ${lab}: ${size}</li>`).join('')}
+      </ul>
+    `;
+  }
+  
+  renderNodeDetails(node) {
+    if (!this.analyticsDiv) return;
+    this.analyticsDiv.innerHTML = `
+      <div style="font-weight:bold; margin-bottom:6px;">Node Focus</div>
+      <div><strong>ID:</strong> ${node.id}</div>
+      <div><strong>Type:</strong> ${node.type}</div>
+      <div><strong>Group:</strong> ${node._group}</div>
+      <div><strong>Degree:</strong> ${node._degree}</div>
+      <div><strong>V (mV):</strong> ${(node.V||0).toFixed(2)}</div>
+      <div><strong>Firing:</strong> ${node.fired ? 'Yes' : 'No'}</div>
+      <div style="margin-top:8px;"><em>Click background to restore insights</em></div>
+    `;
+  }
+  
+  highlightNeighbors(node, on) {
+    // Dim all
+    const alpha = on ? 0.05 : 0.15;
+    this.layers.connections.selectAll('.synapse').attr('stroke-opacity', alpha);
+    this.layers.neurons.selectAll('.neuron').attr('opacity', on ? 0.3 : 0.95);
+    if (on) {
+      // Highlight neighbors
+      const id = node.id;
+      const connected = new Set();
+      this.layers.connections.selectAll('.synapse')
+        .filter(d => {
+          const s = typeof d.source === 'object' ? d.source.id : d.source;
+          const t = typeof d.target === 'object' ? d.target.id : d.target;
+          const match = s === id || t === id;
+          if (match) { connected.add(s); connected.add(t); }
+          return match;
+        })
+        .attr('stroke-opacity', 0.6)
+        .attr('stroke', '#aaa');
+      this.layers.neurons.selectAll('.neuron')
+        .filter(d => connected.has(d.id))
+        .attr('opacity', 1.0);
+    }
+  }
+  
   getNeuronRadius(neuron) {
+    if (neuron && neuron._size) return neuron._size;
     const baseRadius = {
-      pyramidal: 12,
-      interneuron: 8,
-      sensory: 10,
-      motor: 14
+      pyramidal: 10,
+      interneuron: 7,
+      sensory: 8,
+      motor: 12
     };
-    return baseRadius[neuron.type] || 10;
+    return baseRadius[neuron?.type] || 8;
   }
   
   getNeuronColor(neuron) {
     if (neuron.fired) return this.colors.neuron.firing;
     if (neuron.isRefractory) return this.colors.neuron.refractory;
     return this.colors.neuron[neuron.type] || this.colors.neuron.resting;
+  }
+  
+  getClusterColor(neuron) {
+    return this.clusterColor(neuron._group || 0);
   }
   
   getHeatmapColor(voltage) {

@@ -164,7 +164,8 @@ export class BiologicalNeuron {
   }
   
   // Spike-Timing-Dependent Plasticity (STDP)
-  applySTDP(presynapticSpike: boolean, postsynapticSpike: boolean, synapse: any) {
+  // dt in milliseconds: controls decay per simulation step
+  applySTDP(presynapticSpike: boolean, postsynapticSpike: boolean, synapse: any, dt: number = 1) {
     if (presynapticSpike && synapse.postTrace > 0) {
       // Pre-before-post: LTP
       synapse.weight += this.params.A_plus * synapse.postTrace;
@@ -175,17 +176,17 @@ export class BiologicalNeuron {
       synapse.weight -= this.params.A_minus * synapse.preTrace;
     }
     
-    // Update traces
+    // Update traces with dt-dependent decay
     if (presynapticSpike) {
       synapse.preTrace = 1;
     } else {
-      synapse.preTrace *= Math.exp(-1 / this.params.tau_plus);
+      synapse.preTrace *= Math.exp(-dt / this.params.tau_plus);
     }
     
     if (postsynapticSpike) {
       synapse.postTrace = 1;
     } else {
-      synapse.postTrace *= Math.exp(-1 / this.params.tau_minus);
+      synapse.postTrace *= Math.exp(-dt / this.params.tau_minus);
     }
     
     // Bound weights

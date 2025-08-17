@@ -427,7 +427,7 @@ export class BiologicalNeuronProcessor {
         // Apply STDP with neuromodulation
         if (preSpike || postSpike) {
           const plasticityFactor = this.dopamine * this.acetylcholine;
-          preNeuron.applySTDP(preSpike, postSpike, synapse);
+          preNeuron.applySTDP(preSpike, postSpike, synapse, this.dt);
           synapse.weight *= (1 + plasticityFactor * 0.01);
         }
       }
