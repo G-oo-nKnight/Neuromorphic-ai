@@ -5,10 +5,12 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [
-    build(),
+    build({
+      entry: 'src/index-enhanced.tsx' // Specify entry for build
+    }),
     devServer({
       adapter,
-      entry: 'src/index.tsx'
+      entry: 'src/index-enhanced.tsx' // Use enhanced version with biological neurons
     })
   ]
 })
