@@ -16,7 +16,14 @@
     "db:seed": "wrangler d1 execute neuromorphic-db --local --file=./seed.sql",
     "db:reset": "rm -rf .wrangler/state/v3/d1 && npm run db:migrate:local && npm run db:seed",
     "db:console:local": "wrangler d1 execute neuromorphic-db --local",
-    "db:console:prod": "wrangler d1 execute neuromorphic-db"
+    "db:console:prod": "wrangler d1 execute neuromorphic-db",
+    "git:sync": "./scripts/sync-from-github.sh",
+    "git:status": "git status",
+    "git:pull": "git pull origin main",
+    "git:push": "git push origin main",
+    "git:branch": "git checkout -b",
+    "git:commit": "git add . && git commit -m",
+    "git:log": "git log --oneline -10"
   },
   "dependencies": {
     "hono": "^4.9.2",
