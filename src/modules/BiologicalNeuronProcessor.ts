@@ -393,10 +393,11 @@ export class BiologicalNeuronProcessor {
       if (synapse.preId === neuron.id) {
         const targetNeuron = this.allNeurons.get(synapse.postId);
         if (targetNeuron) {
-          // Send input with synaptic delay
-          const weight = synapse.weight * this.getNeuromodulationFactor(targetNeuron);
+          // Send input with synaptic delay. Convert unitless synaptic weight into pA-scale current.
+          const modulatedWeight = synapse.weight * this.getNeuromodulationFactor(targetNeuron);
+          const amplitude = Math.abs(modulatedWeight) * (synapse.type === 'excitatory' ? 50 : 30);
           targetNeuron.receiveInput(
-            Math.abs(weight),
+            amplitude,
             synapse.delay,
             synapse.type === 'excitatory'
           );
@@ -426,7 +427,7 @@ export class BiologicalNeuronProcessor {
         // Apply STDP with neuromodulation
         if (preSpike || postSpike) {
           const plasticityFactor = this.dopamine * this.acetylcholine;
-          preNeuron.applySTDP(preSpike, postSpike, synapse);
+          preNeuron.applySTDP(preSpike, postSpike, synapse, this.dt);
           synapse.weight *= (1 + plasticityFactor * 0.01);
         }
       }

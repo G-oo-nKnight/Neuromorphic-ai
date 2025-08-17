@@ -33,6 +33,9 @@ export class BiologicalNeuron {
   private lastSpikeTime: number = -Infinity;
   private spikeTrace: number = 0;  // For STDP
   
+  // Simulation time tracking (ms)
+  private currentTime: number = 0;
+  
   // Hodgkin-Huxley gating variables
   private n: number = 0;       // Potassium activation
   private m: number = 0;       // Sodium activation
@@ -91,7 +94,7 @@ export class BiologicalNeuron {
     if (this.V > this.params.Vpeak) {
       this.V = this.params.Vr;
       this.w += this.params.b;
-      this.lastSpikeTime = Date.now();
+      this.lastSpikeTime = this.currentTime;
       this.spikeTrace = 1;
       spiked = true;
     }
@@ -152,7 +155,7 @@ export class BiologicalNeuron {
     
     // Detect spike (threshold crossing with positive derivative)
     if (V_prev < -20 && this.V >= -20 && dV > 0) {
-      this.lastSpikeTime = Date.now();
+      this.lastSpikeTime = this.currentTime;
       this.spikeTrace = 1;
       spiked = true;
     }
@@ -161,7 +164,7 @@ export class BiologicalNeuron {
   }
   
   // Spike-Timing-Dependent Plasticity (STDP)
-  applySTDP(presynapticSpike: boolean, postsynapticSpike: boolean, synapse: any) {
+  applySTDP(presynapticSpike: boolean, postsynapticSpike: boolean, synapse: any, dt: number = 1) {
     if (presynapticSpike && synapse.postTrace > 0) {
       // Pre-before-post: LTP
       synapse.weight += this.params.A_plus * synapse.postTrace;
@@ -176,13 +179,13 @@ export class BiologicalNeuron {
     if (presynapticSpike) {
       synapse.preTrace = 1;
     } else {
-      synapse.preTrace *= Math.exp(-1 / this.params.tau_plus);
+      synapse.preTrace *= Math.exp(-dt / this.params.tau_plus);
     }
     
     if (postsynapticSpike) {
       synapse.postTrace = 1;
     } else {
-      synapse.postTrace *= Math.exp(-1 / this.params.tau_minus);
+      synapse.postTrace *= Math.exp(-dt / this.params.tau_minus);
     }
     
     // Bound weights
@@ -191,7 +194,7 @@ export class BiologicalNeuron {
   
   // Receive synaptic input
   receiveInput(weight: number, delay: number = 0, isExcitatory: boolean = true) {
-    const arrivalTime = Date.now() + delay;
+    const arrivalTime = this.currentTime + delay;
     
     if (isExcitatory) {
       this.excitatoryInputs.push({ time: arrivalTime, weight });
@@ -202,10 +205,14 @@ export class BiologicalNeuron {
   
   // Process queued synaptic inputs
   processSynapticInputs(currentTime: number) {
+    // Sync neuron time with simulation clock
+    this.currentTime = currentTime;
+    
     // Process excitatory inputs
     this.excitatoryInputs = this.excitatoryInputs.filter(input => {
       if (input.time <= currentTime) {
-        this.synapticCurrent += input.weight * 50; // EPSP amplitude
+        // Treat weight as input current amplitude (pA) already scaled by caller
+        this.synapticCurrent += input.weight;
         return false; // Remove processed input
       }
       return true; // Keep future input
@@ -214,7 +221,8 @@ export class BiologicalNeuron {
     // Process inhibitory inputs
     this.inhibitoryInputs = this.inhibitoryInputs.filter(input => {
       if (input.time <= currentTime) {
-        this.synapticCurrent -= input.weight * 30; // IPSP amplitude
+        // Treat weight as input current amplitude (pA)
+        this.synapticCurrent -= input.weight;
         return false;
       }
       return true;
@@ -231,14 +239,14 @@ export class BiologicalNeuron {
       spikeTrace: this.spikeTrace,
       lastSpikeTime: this.lastSpikeTime,
       synapticCurrent: this.synapticCurrent,
-      isRefractory: Date.now() - this.lastSpikeTime < 2, // 2ms refractory
+      isRefractory: (this.currentTime - this.lastSpikeTime) < 2, // 2ms refractory
       firingRate: this.calculateFiringRate()
     };
   }
   
   private calculateFiringRate(): number {
     // Simple exponential moving average of firing rate
-    const timeSinceSpike = Date.now() - this.lastSpikeTime;
+    const timeSinceSpike = this.currentTime - this.lastSpikeTime;
     if (timeSinceSpike < 1000) {
       return 1000 / timeSinceSpike; // Hz
     }
@@ -252,6 +260,7 @@ export class BiologicalNeuron {
     this.synapticCurrent = 0;
     this.excitatoryInputs = [];
     this.inhibitoryInputs = [];
+    this.currentTime = 0;
   }
 }
 

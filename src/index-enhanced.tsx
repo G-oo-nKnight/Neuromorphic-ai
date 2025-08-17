@@ -140,11 +140,13 @@ app.post('/api/reward/:sessionId', async (c) => {
   const { reward } = await c.req.json();
   
   const agent = getAgent(sessionId);
-  // Access the processor through the agent (would need to expose this method)
+  // Apply reward into agent's neuromodulation
+  const neuromodulators = agent.applyReward(Number(reward) || 0);
   
   return c.json({
     message: 'Reward applied',
-    reward
+    reward,
+    neuromodulators
   });
 });
 
